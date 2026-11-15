@@ -1,0 +1,19 @@
+name: "Terraform Workflow"
+
+#Parametros de input para dar o start da pipeline
+#essa pipeline sera executada manualmente pois precisa desses inputs
+on:
+  workflow_call:
+    inputs:
+      enviroment:
+        type: string
+        required: true
+      aws-assume-role-arn:
+        type: string
+        required: true
+      aws-s3-bucket-statefile:
+        type: string
+        required: true
+      aws-lock-dynamodb-table:
+        type: string
+        required: true

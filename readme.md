@@ -1,0 +1,1 @@
+Lab de terraform de um video do yt para aprender usar as pipelines com o terraform
