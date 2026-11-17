@@ -16,9 +16,8 @@ jobs:
       environment: dev
       aws-assume-role-arn: "arn:aws:iam::844153410768:role/github-actions-miguelgarbo-pipeline"
       aws-region: "us-east-2"
-      aws-statefile-s3-bucket: "miguelgarbo-statefile-terraform-us-east-1"
+      aws-s3-bucket-statefile: "miguelgarbo-statefile-terraform-us-east-1"
       aws-lock-dynamodb-table: "miguelgarbo-terraform-lock-us-east-1"
-    
 
 
 
