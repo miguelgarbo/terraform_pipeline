@@ -3,7 +3,7 @@ name: "Terraform Workflow"
 #Parametros de input para dar o start da pipeline
 #essa pipeline sera executada manualmente pois precisa desses inputs
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       enviroment:
         type: string
