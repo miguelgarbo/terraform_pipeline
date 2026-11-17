@@ -52,6 +52,9 @@ jobs:
             role-session-name: GitHub_to_AWS_via_FederatedOIDC
             aws-region: ${{ inputs.aws-region }}
 
+        - name: Verify AWS identity
+          run: aws sts get-caller-identity
+
         - name: Terraform Init
           run: |
             cd infa && terraform init \
