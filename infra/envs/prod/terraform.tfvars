@@ -1,1 +1,1 @@
-bucket_name="prod-us-east-2-buildrun-pipeline"
+bucket_name="${var.environment}-${var.region}-buildrun-pipeline-${data.aws_caller_identity.current.account_id}"
