@@ -58,7 +58,7 @@ jobs:
               -backend-config="bucket=${{ inputs.aws-statefile-s3-bucket }}" \
               -backend-config="key=${{ github.event.repository.name }}" \
               -backend-config="region=${{ inputs.aws-region }}" \
-              -backend-config="dynamodb_table=${{ input.aws-lock-dynamondb-table }}" 
+              -backend-config="dynamodb_table=${{ input.aws-lock-dynamodb-table }}" 
         - name: Terraform validate
           run: terraform validate
         - name: Terraform Plan
