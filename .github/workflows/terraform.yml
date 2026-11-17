@@ -15,9 +15,6 @@ on:
       aws-region:
         type: string
         required: true
-      aws-backend-region:        # região do bucket/tabela do state
-        type: string
-        required: true
       aws-lock-dynamodb-table:
         type: string
         required: true
@@ -29,7 +26,7 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: infra   # todos os run: executam aqui
+        working-directory: infra # todos os run: executam aqui
 
     steps:
       - name: Checkout code
@@ -39,7 +36,14 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.8.3
-
+      - name: Debug OIDC claims
+        run: |
+          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          echo "$TOKEN" | cut -d. -f2 | tr '_-' '/+' \
+            | awk '{ while (length($0)%4) $0=$0"="; print }' \
+            | base64 -d | jq '{sub, aud, iss, repository, job_workflow_ref}'
+            
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
