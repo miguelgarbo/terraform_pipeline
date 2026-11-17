@@ -9,7 +9,6 @@
 .terraform.tfstate.lock.info
 
 # Arquivos de variáveis sensíveis
-*.tfvars
 *.tfvars.json
 
 # Arquivos de override locais
