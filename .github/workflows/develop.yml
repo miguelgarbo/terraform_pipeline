@@ -13,7 +13,7 @@ jobs:
   terraform:
     uses: ./.github/workflows/terraform.yml
     with:
-      enviroment: dev
+      environment: dev
       aws-assume-role-arn: arn:aws:iam::844153410768:role/github-actions-miguelgarbo-pipeline
       aws-region: us-east-2
       aws-s3-bucket-statefile: miguelgarbo-statefile-terraform-us-east-1
