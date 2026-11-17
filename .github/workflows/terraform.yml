@@ -21,59 +21,63 @@ on:
         type: string
         required: true
 
-jobs: 
-    terraform:
-
+jobs:
+  terraform:
     #esse step precisa de um sistema operacional
     #aqui eu referencio o ubuntu
-      runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
 
-      defaults:
-          run:
-          #todos comandos serao executados pelo bash
-            shell: bash
+    defaults:
+      run:
+        #todos comandos serao executados pelo bash
+        shell: bash
 
-      steps:
+    steps:
       # processo de git clone do nosso projeto
-        - name: Checkout code
-          uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       #aqui configura o ambiente para poder usar o terraform
-        - name: Setup terraform
-          uses: hashicorp/setup-terraform@v3
-          with:
-            terraform_version: 1.8.3
-
-        - name: Configure AWS credentials
-          uses: aws-actions/configure-aws-credentials@v4
-          with:
+      - name: Setup terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.3
+      - name: Debug OIDC Subject
+        run: |
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Ref: $GITHUB_REF"
+          echo "OIDC URL available: $([ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ] && echo YES || echo NO)"
+          
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
           # aqui a gente ta usando os inputs que foram referenciados logo acima
-            role-to-assume: ${{ inputs.aws-assume-role-arn }}
-            role-session-name: GitHub_to_AWS_via_FederatedOIDC
-            aws-region: ${{ inputs.aws-region }}
+          role-to-assume: ${{ inputs.aws-assume-role-arn }}
+          role-session-name: GitHub_to_AWS_via_FederatedOIDC
+          aws-region: ${{ inputs.aws-region }}
 
-        - name: Verify AWS identity
-          run: aws sts get-caller-identity
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
 
-        - name: Terraform Init
-          run: |
-            cd infa && terraform init \
-              -backend-config="bucket=${{ inputs.aws-statefile-s3-bucket }}" \
-              -backend-config="key=${{ github.event.repository.name }}" \
-              -backend-config="region=${{ inputs.aws-region }}" \
-              -backend-config="dynamodb_table=${{ inputs.aws-lock-dynamodb-table }}" 
-        - name: Terraform validate
-          run: terraform validate
-        - name: Terraform Plan
-          id: terraform-plan
-          #aqui estamos criando workspaces diferentes para os diferentes ambientes que temos
-          # ele cria dai 2 statefiles , um para cada workspace, no nosso caso dev e prod
-          run: cd infra && 
-              terraform workspace select ${{ inputs.environment }} || terraform workspace new $${{ inputs.environment }} &&
-              terraform plan -var-file="./envs/${{ inputs.enviroment }}/terraform.tfvars" -out="${{ inputs.enviroment }}.plan"
+      - name: Terraform Init
+        run: |
+          cd infa && terraform init \
+            -backend-config="bucket=${{ inputs.aws-statefile-s3-bucket }}" \
+            -backend-config="key=${{ github.event.repository.name }}" \
+            -backend-config="region=${{ inputs.aws-region }}" \
+            -backend-config="dynamodb_table=${{ inputs.aws-lock-dynamodb-table }}"
+      - name: Terraform validate
+        run: terraform validate
+      - name: Terraform Plan
+        id: terraform-plan
+        #aqui estamos criando workspaces diferentes para os diferentes ambientes que temos
+        # ele cria dai 2 statefiles , um para cada workspace, no nosso caso dev e prod
+        run: cd infra &&
+          terraform workspace select ${{ inputs.environment }} || terraform workspace new $${{ inputs.environment }} &&
+          terraform plan -var-file="./envs/${{ inputs.enviroment }}/terraform.tfvars" -out="${{ inputs.enviroment }}.plan"
 
-        - name: Providing Infra with Terraform Apply
-          id: terraform-apply
-          run: cd infra &&
-              terraform workspace select ${{ inputs.enviroment }} || terraform workspace new ${{ inputs.environment }}
-              terraform apply "${{ inputs.enviroment }}.plan"
+      - name: Providing Infra with Terraform Apply
+        id: terraform-apply
+        run: cd infra &&
+          terraform workspace select ${{ inputs.enviroment }} || terraform workspace new ${{ inputs.environment }}
+          terraform apply "${{ inputs.enviroment }}.plan"
