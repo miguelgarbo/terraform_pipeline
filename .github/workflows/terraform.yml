@@ -1,7 +1,5 @@
 name: "Terraform Workflow"
 
-#Parametros de input para dar o start da pipeline
-#essa pipeline sera executada manualmente pois precisa desses inputs
 on:
   workflow_call:
     inputs:
@@ -17,37 +15,34 @@ on:
       aws-region:
         type: string
         required: true
+      aws-backend-region:        # região do bucket/tabela do state
+        type: string
+        required: true
       aws-lock-dynamodb-table:
         type: string
         required: true
 
 jobs:
   terraform:
-    #esse step precisa de um sistema operacional
-    #aqui eu referencio o ubuntu
     runs-on: ubuntu-latest
 
     defaults:
       run:
-        #todos comandos serao executados pelo bash
         shell: bash
+        working-directory: infra   # todos os run: executam aqui
 
     steps:
-      # processo de git clone do nosso projeto
       - name: Checkout code
         uses: actions/checkout@v4
 
-      #aqui configura o ambiente para poder usar o terraform
       - name: Setup terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.8.3
-      
-          
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # aqui a gente ta usando os inputs que foram referenciados logo acima
           role-to-assume: ${{ inputs.aws-assume-role-arn }}
           role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: ${{ inputs.aws-region }}
@@ -57,24 +52,25 @@ jobs:
 
       - name: Terraform Init
         run: |
-          cd infa && terraform init \
+          terraform init \
             -backend-config="bucket=${{ inputs.aws-s3-bucket-statefile }}" \
             -backend-config="key=${{ github.event.repository.name }}" \
             -backend-config="region=${{ inputs.aws-region }}" \
             -backend-config="dynamodb_table=${{ inputs.aws-lock-dynamodb-table }}"
-      - name: Terraform validate
+
+      - name: Terraform Validate
         run: terraform validate
 
       - name: Terraform Plan
         id: terraform-plan
-        #aqui estamos criando workspaces diferentes para os diferentes ambientes que temos
-        # ele cria dai 2 statefiles , um para cada workspace, no nosso caso dev e prod
-        run: cd infra &&
-          terraform workspace select ${{ inputs.environment }} || terraform workspace new $${{ inputs.environment }} &&
-          terraform plan -var-file="./envs/${{ inputs.environment }}/terraform.tfvars" -out="${{ inputs.environment }}.plan"
+        run: |
+          terraform workspace select -or-create ${{ inputs.environment }}
+          terraform plan \
+            -var-file="./envs/${{ inputs.environment }}/terraform.tfvars" \
+            -out="${{ inputs.environment }}.plan"
 
-      - name: Providing Infra with Terraform Apply
+      - name: Terraform Apply
         id: terraform-apply
-        run: cd infra &&
-          terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }}
+        run: |
+          terraform workspace select ${{ inputs.environment }}
           terraform apply "${{ inputs.environment }}.plan"
