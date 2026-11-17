@@ -40,7 +40,7 @@ jobs:
 
       #aqui configura o ambiente para poder usar o terraform
         - name: Setup terraform
-          uses: hashicorp/setup-terraform@v.3
+          uses: hashicorp/setup-terraform@v3
           with:
             terraform_version: 1.8.3
 
