@@ -5,7 +5,7 @@ name: "Terraform Workflow"
 on:
   workflow_call:
     inputs:
-      enviroment:
+      environment:
         type: string
         required: true
       aws-assume-role-arn:
@@ -42,12 +42,30 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.8.3
-      - name: Debug OIDC Subject
-        run: |
-          echo "Repository: $GITHUB_REPOSITORY"
-          echo "Ref: $GITHUB_REF"
-          echo "OIDC URL available: $([ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ] && echo YES || echo NO)"
           
+      - name: Inspect OIDC Claims
+        shell: bash
+        run: |
+          set +x
+
+          TOKEN_RESPONSE=$(curl -fsS \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
+
+          TOKEN=$(echo "$TOKEN_RESPONSE" | jq -er '.value')
+
+          printf '%s' "$TOKEN" | python -c '
+          import sys, json, base64
+
+          token = sys.stdin.read()
+          payload = token.split(".")[1]
+          payload += "=" * (-len(payload) % 4)
+          claims = json.loads(base64.urlsafe_b64decode(payload))
+
+          for key in ("iss", "aud", "sub"):
+              print(f"{key}: {claims.get(key)}")
+          '
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -62,22 +80,23 @@ jobs:
       - name: Terraform Init
         run: |
           cd infa && terraform init \
-            -backend-config="bucket=${{ inputs.aws-statefile-s3-bucket }}" \
+            -backend-config="bucket=${{ inputs.aws-s3-bucket-statefile }}" \
             -backend-config="key=${{ github.event.repository.name }}" \
             -backend-config="region=${{ inputs.aws-region }}" \
             -backend-config="dynamodb_table=${{ inputs.aws-lock-dynamodb-table }}"
       - name: Terraform validate
         run: terraform validate
+
       - name: Terraform Plan
         id: terraform-plan
         #aqui estamos criando workspaces diferentes para os diferentes ambientes que temos
         # ele cria dai 2 statefiles , um para cada workspace, no nosso caso dev e prod
         run: cd infra &&
           terraform workspace select ${{ inputs.environment }} || terraform workspace new $${{ inputs.environment }} &&
-          terraform plan -var-file="./envs/${{ inputs.enviroment }}/terraform.tfvars" -out="${{ inputs.enviroment }}.plan"
+          terraform plan -var-file="./envs/${{ inputs.environment }}/terraform.tfvars" -out="${{ inputs.environment }}.plan"
 
       - name: Providing Infra with Terraform Apply
         id: terraform-apply
         run: cd infra &&
-          terraform workspace select ${{ inputs.enviroment }} || terraform workspace new ${{ inputs.environment }}
-          terraform apply "${{ inputs.enviroment }}.plan"
+          terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }}
+          terraform apply "${{ inputs.environment }}.plan"
